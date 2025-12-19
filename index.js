@@ -13,18 +13,14 @@ const { loader: autoEat } = require('mineflayer-auto-eat');
 const { Vec3 } = require('vec3');
 const { status } = require('minecraft-server-util');
 const chalk = require('chalk');
-//File Importing setupCombat
+//File Importing Starts Here
 const combat = require('./combat');
 const { equipBestGear } = require('./equipBestGear');
 const { setupMining, startMining, stopMining } = require('./mining');
-// const actions = require('./botActions/actions');
-// const createActions = require("./actions");
 const functions = require('./functions.js');
 
-//Virendra.minehut.gg:25565 hungry
-//Aternos IP: The_Boyss.aternos.me:34796 
-const SERVER_HOST = 'localhost';
-const SERVER_PORT = 25565; // 19132 for minehut mining
+const SERVER_HOST = process.env.SERVER_HOST;
+const SERVER_PORT = Number(process.env.SERVER_PORT) || 25565;
 const BOT_USERNAME = 'Aisha';
 const MAX_RETRIES = 3; 
 
@@ -148,8 +144,8 @@ function startBot() {
   botRunning = true;
 
   bot = mineflayer.createBot({
-    host: SERVER_HOST,  //ip for aternos: knightbot.duckdns.org
-    port: SERVER_PORT,        // port for aternos: 34796 
+    host: SERVER_HOST,  
+    port: SERVER_PORT,   
     username: BOT_USERNAME,
     version: false
   });
@@ -181,7 +177,7 @@ function startBot() {
   
   bot.on('kicked', (reason) => console.log('❌ Kicked:', reason));
   bot.on('error', (err) => console.log("❗ Bot error:", err.message));
-  //setTimeout mine bot.on('chat
+  //setTimeout mine bot.on('chat owner
   bot.once('spawn', async () => {
     try {
       reconnectAttempts = 0;
@@ -199,10 +195,6 @@ function startBot() {
       // attach to bot
       bot.actions = functions;
 
-      // console.log("Loaded bot.actions:", Object.keys(bot.actions));  
-
-      // actions.setupActions(bot, mcData);
-      // bot.actions = actions;
       equipBestGear(bot);
       setInterval(() => equipBestGear(bot), 5 * 60 * 1000);
       setInterval(() => {
@@ -258,7 +250,7 @@ function startBot() {
       //     bot.chat("🍗 I'm hungry! Eating now.");
       //     bot.autoEat.enableAuto(); 
       //   }
-      // }); collectwood
+      // }); 
 
       bot.on('health', () => {
         const now = Date.now();
@@ -625,7 +617,7 @@ async function positionNearPlayer(username) {
   // Face the same direction as player Loaded bot.actions
   const lookVec = player.lookVector;
   if (lookVec) {
-    const lookPos = pos.plus(lookVec.scaled(5)); // Look 5 blocks ahead in player's direction owner
+    const lookPos = pos.plus(lookVec.scaled(5)); // Look 5 blocks ahead in player's direction
     bot.lookAt(lookPos);
   }
 

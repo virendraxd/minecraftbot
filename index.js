@@ -23,8 +23,8 @@ const functions = require('./functions.js');
 
 //Virendra.minehut.gg:25565 hungry
 //Aternos IP: The_Boyss.aternos.me:34796 
-const SERVER_HOST = 'The_Boyss.aternos.me';
-const SERVER_PORT = 34796; // 19132 for minehut mining
+const SERVER_HOST = 'localhost';
+const SERVER_PORT = 25565; // 19132 for minehut mining
 const BOT_USERNAME = 'Aisha';
 const MAX_RETRIES = 3; 
 
@@ -245,8 +245,8 @@ function startBot() {
         };
       });
 
-      // let lastFoodRequest = 0;
-      // const FOOD_REQUEST_COOLDOWN = 30 * 1000; 
+      let lastFoodRequest = 0;
+      const FOOD_REQUEST_COOLDOWN = 30 * 1000; 
 
       // bot.on('health', () => {
       //   if (bot.food < 14 && Date.now() - lastFoodRequest > FOOD_REQUEST_COOLDOWN) {
@@ -258,7 +258,7 @@ function startBot() {
       //     bot.chat("🍗 I'm hungry! Eating now.");
       //     bot.autoEat.enableAuto(); 
       //   }
-      // });
+      // }); collectwood
 
       bot.on('health', () => {
         const now = Date.now();
@@ -321,9 +321,9 @@ function startBot() {
       const fullCommand = [cmd, ...args].join(' ').toLowerCase();
 
       if (cmd === 'help') {
-        bot.chat('📜 Commands 1/3: !come | !follow | !avoid | !stop | !collect wood | !put in chest | !getlocation <username>');
+        bot.chat('📜 Commands 1/3: !come | !follow | !avoid | !stop | !collect wood | !put in chest | !getlocation <username> | !copypos ');
         setTimeout(() => {
-          bot.chat('📜 Commands 2/3: !goto x y z | !break | !place <item> | !deliver | !chat <msg>');
+          bot.chat('📜 Commands 2/3: !goto x y z | !break | !place <item> | !deliver | !chat <msg> | !startmine | !stopmine');
         }, 1000);
       }
 
@@ -423,7 +423,7 @@ function startBot() {
       } else if (cmd === 'break') {
         if (!target) return bot.chat("I can't see you!");
         try {
-          const rayBlock = rayTraceEntitySight(target);
+          const rayBlock = bot.actions.rayTraceEntitySight(target);
           if (!rayBlock) return bot.chat('Block is out of reach');
           await bot.pathfinder.goto(new GoalLookAtBlock(rayBlock.position, bot.world, { range: 4 }));
           const bestTool = bot.pathfinder.bestHarvestTool(bot.blockAt(rayBlock.position));
@@ -439,9 +439,9 @@ function startBot() {
         if (items.length === 0) return bot.chat('I don\'t have ' + itemName);
 
         try {
-          const rayBlock = rayTraceEntitySight(target);
+          const rayBlock = bot.actions.rayTraceEntitySight(target);
           if (!rayBlock) return bot.chat('Block is out of reach');
-          const face = directionToVector(rayBlock.face);
+          const face = bot.actions.directionToVector(rayBlock.face);
           await bot.pathfinder.goto(new GoalPlaceBlock(rayBlock.position.offset(face.x, face.y, face.z), bot.world, { range: 4 }));
           await bot.equip(items[0], 'hand');
           await bot.lookAt(rayBlock.position.offset(face.x * 0.5 + 0.5, face.y * 0.5 + 0.5, face.z * 0.5 + 0.5));
@@ -451,7 +451,7 @@ function startBot() {
         }
       } else if (cmd === 'deliver') {
         try {
-          const chest = findNearestTrappedChest();
+          const chest = bot.actions.findNearestTrappedChest();
           if (!chest) return bot.chat('No trapped chest nearby.');
 
           await bot.pathfinder.goto(new GoalNear(chest.position.x, chest.position.y, chest.position.z, 1));
@@ -631,6 +631,7 @@ async function positionNearPlayer(username) {
 
   bot.chat(`📍 Positioned at ${username}'s location, facing their direction.`);
 }
+
 async function chatWithAI(message) {
   try {
     const response = await axios.post(

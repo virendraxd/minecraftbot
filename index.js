@@ -17,25 +17,40 @@ const chalk = require('chalk');
 // Startup diagnostics
 console.log(chalk.blue("🤖 Bot initialization starting..."));
 console.log(chalk.gray(`Environment: ${process.env.NODE_ENV || 'production'}`));
+console.log(chalk.gray(`Platform: ${process.platform}`));
+console.log(chalk.gray(`Node.js: ${process.version}`));
 
 const combat = require('./combat');
 const { equipBestGear } = require('./equipBestGear');
 const { setupMining, startMining, stopMining } = require('./mining');
 const functions = require('./functions.js');
 
-const SERVER_HOST = process.env.SERVER_HOST;
-const SERVER_PORT = Number(process.env.SERVER_PORT) || 25565;
+const SERVER_HOST = process.env.SERVER_HOST?.trim();
+const SERVER_PORT_ENV = process.env.SERVER_PORT?.trim();
+const SERVER_PORT = SERVER_PORT_ENV ? Number(SERVER_PORT_ENV) : 25565;
 const BOT_USERNAME = 'Aisha';
 const MAX_RETRIES = 3;
 
-// Log loaded configuration
-console.log(chalk.yellow(`📍 Server: ${SERVER_HOST || 'NOT SET'}:${SERVER_PORT}`));
+// Log loaded configuration with detailed debugging
+console.log(chalk.yellow(`📍 Server Host from env: "${process.env.SERVER_HOST}"`));
+console.log(chalk.yellow(`📍 Server Port from env: "${process.env.SERVER_PORT}"`));
+console.log(chalk.yellow(`📍 Final Server: ${SERVER_HOST || 'NOT SET'}:${SERVER_PORT}`));
 console.log(chalk.yellow(`🎮 Bot Username: ${BOT_USERNAME}`));
 
 // Validate environment variables on startup
-if (!SERVER_HOST) {
-  console.error("❌ CRITICAL: SERVER_HOST is not defined in .env file!");
-  console.error("   Make sure .env file exists and contains: SERVER_HOST=your.server.address");
+if (!SERVER_HOST || SERVER_HOST.length === 0) {
+  console.error("❌ CRITICAL: SERVER_HOST is not defined or empty in environment!");
+  console.error("   Raw value:", JSON.stringify(process.env.SERVER_HOST));
+  console.error("   To fix on Render: Add to Environment in dashboard:");
+  console.error("   SERVER_HOST=The_Boyss.aternos.me");
+  console.error("   SERVER_PORT=34796");
+  process.exit(1);
+}
+
+if (isNaN(SERVER_PORT) || SERVER_PORT <= 0) {
+  console.error("❌ CRITICAL: SERVER_PORT is not a valid number!");
+  console.error("   Raw value:", JSON.stringify(process.env.SERVER_PORT));
+  console.error("   Parsed to:", SERVER_PORT);
   process.exit(1);
 } 
 
@@ -66,17 +81,26 @@ http.createServer((req, res) => {
 async function pingServerAndDecide() {
   try {
     // Validate variables before attempting to ping
-    if (!SERVER_HOST) {
-      console.error("❌ SERVER_HOST is undefined!");
+    if (!SERVER_HOST || SERVER_HOST.length === 0) {
+      console.error("❌ SERVER_HOST is empty or undefined!");
       return;
     }
     if (!SERVER_PORT || isNaN(SERVER_PORT)) {
       console.error("❌ SERVER_PORT is invalid:", SERVER_PORT);
+      console.error("   Raw from env:", process.env.SERVER_PORT);
       return;
     }
 
     console.log(`📡 Pinging server: ${SERVER_HOST}:${SERVER_PORT}...`);
-    const result = await status(SERVER_HOST, SERVER_PORT);
+    
+    // Use a timeout to prevent hanging
+    const result = await Promise.race([
+      status(SERVER_HOST, SERVER_PORT),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Ping timeout after 10 seconds')), 10000)
+      )
+    ]);
+    
     console.log(chalk.green("✅ Server online."));
     
     const onlinePlayers = result?.players?.online;

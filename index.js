@@ -13,7 +13,11 @@ const { loader: autoEat } = require('mineflayer-auto-eat');
 const { Vec3 } = require('vec3');
 const { status } = require('minecraft-server-util');
 const chalk = require('chalk');
-//File Importing Starts Here
+
+// Startup diagnostics
+console.log(chalk.blue("🤖 Bot initialization starting..."));
+console.log(chalk.gray(`Environment: ${process.env.NODE_ENV || 'production'}`));
+
 const combat = require('./combat');
 const { equipBestGear } = require('./equipBestGear');
 const { setupMining, startMining, stopMining } = require('./mining');
@@ -22,7 +26,18 @@ const functions = require('./functions.js');
 const SERVER_HOST = process.env.SERVER_HOST;
 const SERVER_PORT = Number(process.env.SERVER_PORT) || 25565;
 const BOT_USERNAME = 'Aisha';
-const MAX_RETRIES = 3; 
+const MAX_RETRIES = 3;
+
+// Log loaded configuration
+console.log(chalk.yellow(`📍 Server: ${SERVER_HOST || 'NOT SET'}:${SERVER_PORT}`));
+console.log(chalk.yellow(`🎮 Bot Username: ${BOT_USERNAME}`));
+
+// Validate environment variables on startup
+if (!SERVER_HOST) {
+  console.error("❌ CRITICAL: SERVER_HOST is not defined in .env file!");
+  console.error("   Make sure .env file exists and contains: SERVER_HOST=your.server.address");
+  process.exit(1);
+} 
 
 let bot = null;
 let lastPlayerActivity = Date.now(); 
@@ -50,10 +65,21 @@ http.createServer((req, res) => {
 
 async function pingServerAndDecide() {
   try {
+    // Validate variables before attempting to ping
+    if (!SERVER_HOST) {
+      console.error("❌ SERVER_HOST is undefined!");
+      return;
+    }
+    if (!SERVER_PORT || isNaN(SERVER_PORT)) {
+      console.error("❌ SERVER_PORT is invalid:", SERVER_PORT);
+      return;
+    }
+
+    console.log(`📡 Pinging server: ${SERVER_HOST}:${SERVER_PORT}...`);
     const result = await status(SERVER_HOST, SERVER_PORT);
     console.log(chalk.green("✅ Server online."));
     
-    const onlinePlayers = result.players.online;
+    const onlinePlayers = result?.players?.online;
 
     console.log("Checking real player count...");
     if (onlinePlayers > 0) {
@@ -78,13 +104,26 @@ async function pingServerAndDecide() {
   } catch (error) {
     if (error.code === 'ECONNREFUSED' || (error.errors && error.errors.some(e => e.code === 'ECONNREFUSED'))) {
       console.log("⚠️ Server offline (connection refused). Ignoring error.");
+    } else if (error.message && error.message.includes('timeout')) {
+      console.error("⏱️ Server ping timeout - server may be slow or offline");
+    } else if (!error.message) {
+      console.error("❌ Unexpected error - check if SERVER_HOST is correctly formatted:", {
+        SERVER_HOST,
+        SERVER_PORT,
+        error: String(error)
+      });
     } else {
-      console.error("❌ Unexpected error pinging server:", error);
+      console.error("❌ Unexpected error pinging server:", error.message);
     }
   }
 }
 
 pingServerAndDecide(); 
+
+// Start periodic server checks only after validation
+setTimeout(() => {
+  serverPingInterval = setInterval(pingServerAndDecide, 30_000);
+}, 5000); // Start checking after 5 seconds to allow environment to initialize
 
 function startPlayerCheckLoop() {
   if (playerCheckInterval) clearInterval(playerCheckInterval);
@@ -113,8 +152,6 @@ function startPlayerCheckLoop() {
   }, 10000); 
 }
 
-serverPingInterval = setInterval(pingServerAndDecide, 30_000);
-
 setInterval(() => {
   const now = Date.now();
   const timeSinceLastActivity = (now - lastActivity) / 1000; 
@@ -122,9 +159,14 @@ setInterval(() => {
   if (timeSinceLastActivity > 300) { 
     console.log("No activity detected for 5 minutes. Doing something...");
   }
-}, 60 * 1000); 
+}, 60 * 1000);
 
 function startBot() {
+  if (!SERVER_HOST || !SERVER_PORT) {
+    console.error("❌ Cannot start bot - SERVER_HOST or SERVER_PORT not configured!");
+    return;
+  }
+
   if (playerRetryAttempts >= MAX_RETRIES) {
     console.log("🚫 Not starting bot because max player retry attempts reached.");
     return;
